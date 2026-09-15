@@ -13,23 +13,54 @@ import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
 import { useSearchParams } from 'next/navigation';
 import { CampaignMeta } from '@/lib/types';
 
+function DashboardSkeletonRow() {
+  return (
+    <div className="animate-pulse flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-slate-900 border border-slate-800 rounded-xl mb-4 gap-4">
+      <div className="flex items-center gap-4 w-full md:w-auto flex-grow">
+        <div className="w-16 h-16 bg-slate-800 rounded-lg shrink-0" />
+        <div className="flex-grow space-y-2 min-w-0">
+          <div className="h-4 bg-slate-800 rounded w-1/3" />
+          <div className="h-3 bg-slate-800 rounded w-1/4" />
+          <div className="h-2 bg-slate-800 rounded w-full" />
+        </div>
+      </div>
+      <div className="h-9 w-20 bg-slate-800 rounded-lg shrink-0" />
+    </div>
+  );
+}
+
 function DashboardContent() {
   const { address, isConnected, connect } = useWallet();
-  const { data: allChains } = useAllCampaignChains();
-  const { data: myContributions } = useMyContributions(address);
+  const { data: allChains, isLoading: isLoadingChains } = useAllCampaignChains();
+  const { data: myContributions, isLoading: isLoadingContributions } = useMyContributions(address);
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'campaigns';
 
-  const [metaMap, setMetaMap] = useState<Record<number, string>>({});
+  const [metaMap, setMetaMap] = useState<Record<number, { title: string; imageCid?: string }>>({});
+  const [currentTimestamp, setCurrentTimestamp] = useState<number>(0);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      setCurrentTimestamp(Math.floor(Date.now() / 1000));
+    });
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     async function fetchMeta() {
-      const res = await listCampaigns();
-      const map: Record<number, string> = {};
-      res.items.forEach((item: CampaignMeta) => {
-        map[item.campaignId] = item.title;
-      });
-      setMetaMap(map);
+      try {
+        const res = await listCampaigns();
+        const map: Record<number, { title: string; imageCid?: string }> = {};
+        res.items.forEach((item: CampaignMeta) => {
+          map[item.campaignId] = {
+            title: item.title,
+            imageCid: item.imageCid
+          };
+        });
+        setMetaMap(map);
+      } catch {
+        // Handle gracefully
+      }
     }
     fetchMeta();
   }, []);
@@ -89,14 +120,22 @@ function DashboardContent() {
 
       {activeTab === 'campaigns' && (
         <div>
-          {myCampaigns.length === 0 ? (
+          {isLoadingChains ? (
+            <>
+              <DashboardSkeletonRow />
+              <DashboardSkeletonRow />
+              <DashboardSkeletonRow />
+            </>
+          ) : myCampaigns.length === 0 ? (
             <DashboardEmpty kind="campaigns" />
           ) : (
             myCampaigns.map(c => (
               <MyCampaignRow 
                 key={c.campaignId} 
                 campaign={c} 
-                metaTitle={metaMap[c.campaignId]} 
+                metaTitle={metaMap[c.campaignId]?.title} 
+                metaImageCid={metaMap[c.campaignId]?.imageCid}
+                currentTimestamp={currentTimestamp}
               />
             ))
           )}
@@ -105,7 +144,13 @@ function DashboardContent() {
 
       {activeTab === 'contributions' && (
         <div>
-          {(!myContributions || myContributions.length === 0) ? (
+          {isLoadingContributions ? (
+            <>
+              <DashboardSkeletonRow />
+              <DashboardSkeletonRow />
+              <DashboardSkeletonRow />
+            </>
+          ) : (!myContributions || myContributions.length === 0) ? (
             <DashboardEmpty kind="contributions" />
           ) : (
             myContributions.map((contrib, i) => {
@@ -115,7 +160,8 @@ function DashboardContent() {
                   key={i} 
                   contribution={contrib} 
                   campaign={chain}
-                  metaTitle={metaMap[contrib.campaignId]}
+                  metaTitle={metaMap[contrib.campaignId]?.title}
+                  currentTimestamp={currentTimestamp}
                 />
               );
             })

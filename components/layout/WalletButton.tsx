@@ -1,13 +1,22 @@
 'use client';
 import { useWallet } from '@/lib/hooks/useWallet';
 import { shortAddress } from '@/lib/format';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import toast from 'react-hot-toast';
+
+function getAddressGradient(address?: string | null): string {
+  if (!address) return 'linear-gradient(135deg, #3b82f6, #8b5cf6)';
+  const clean = address.toLowerCase().replace(/^0x/, '').padEnd(12, '0');
+  const color1 = `#${clean.slice(0, 6)}`;
+  const color2 = `#${clean.slice(-6)}`;
+  return `linear-gradient(135deg, ${color1}, ${color2})`;
+}
 
 export function WalletButton() {
   const { address, isConnected, connect, disconnect } = useWallet();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const avatarGradient = useMemo(() => getAddressGradient(address), [address]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -51,7 +60,10 @@ export function WalletButton() {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-colors"
       >
-        <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500" />
+        <div 
+          className="w-5 h-5 rounded-full shrink-0" 
+          style={{ background: avatarGradient }}
+        />
         <span className="font-medium text-sm">{shortAddress(address)}</span>
       </button>
       

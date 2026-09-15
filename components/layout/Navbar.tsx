@@ -16,10 +16,6 @@ export function Navbar() {
   ];
 
   useEffect(() => {
-    setIsMobileOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === 'Escape') setIsMobileOpen(false);
     }
@@ -32,7 +28,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" onClick={() => setIsMobileOpen(false)} className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="font-bold text-lg text-white">T</span>
               </div>
@@ -62,6 +58,7 @@ export function Navbar() {
             <button 
               onClick={() => setIsMobileOpen(!isMobileOpen)}
               className="text-slate-300 hover:text-white p-2"
+              aria-label="Toggle navigation menu"
             >
               {isMobileOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -76,6 +73,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={() => setIsMobileOpen(false)}
                 className={`block px-3 py-2 rounded-md text-base font-medium ${
                   pathname === link.href ? 'bg-slate-800 text-blue-400' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}

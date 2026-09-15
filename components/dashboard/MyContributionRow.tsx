@@ -2,14 +2,36 @@
 import { Contribution, CampaignChain } from '@/lib/types';
 import { useClaimRefund } from '@/lib/hooks/useClaimRefund';
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
-export function MyContributionRow({ contribution, campaign, metaTitle }: { contribution: Contribution, campaign?: CampaignChain, metaTitle?: string }) {
+export function MyContributionRow({ 
+  contribution, 
+  campaign, 
+  metaTitle,
+  currentTimestamp 
+}: { 
+  contribution: Contribution; 
+  campaign?: CampaignChain; 
+  metaTitle?: string;
+  currentTimestamp?: number;
+}) {
   const { claimRefund, isPending } = useClaimRefund(contribution.campaignId);
-  
+  const [mountedNow, setMountedNow] = useState<number>(currentTimestamp || 0);
+
+  useEffect(() => {
+    if (!currentTimestamp) {
+      const id = requestAnimationFrame(() => {
+        setMountedNow(Math.floor(Date.now() / 1000));
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [currentTimestamp]);
+
+  const activeNow = currentTimestamp || mountedNow;
   const amount = Number(contribution.amountWei) / 1e18;
   const date = new Date(contribution.timestamp * 1000).toLocaleDateString();
   
-  const isEnded = campaign ? (Date.now() / 1000) > campaign.deadline : false;
+  const isEnded = campaign && activeNow > 0 ? activeNow > campaign.deadline : false;
   const isFunded = campaign ? Number(campaign.raisedWei) >= Number(campaign.goalWei) : false;
   const canRefund = isEnded && !isFunded;
 
