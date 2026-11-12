@@ -1,23 +1,93 @@
-// STUB - replaced by M1 in Week 2. Do not change the exported signature.
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import {
+  useAccount,
+  useSwitchChain,
+  useWriteContract,
+  useWaitForTransactionReceipt,
+} from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Abi } from 'viem';
+import { CONTRACT_ADDRESS, CHAIN_ID } from '../constants';
+import CrowdfundABI from '../abi/Crowdfund.json';
+import { isContractConfigured, formatError } from './_errors';
 
-export function useDonate(_id: number) {
-  const [isPending, setIsPending] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [error, setError] = useState<Error | null>(null);
+export function useDonate(id: number) {
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isActionPending, setIsActionPending] = useState(false);
 
-  const donate = useCallback(async (_amountWei: string) => {
-    setIsPending(true);
-    setIsSuccess(false);
-    setError(null);
-    await new Promise((r) => setTimeout(r, 1500));
-    setTxHash('0xmock_donate_tx_' + Date.now().toString(16));
-    setIsSuccess(true);
-    setIsPending(false);
-  }, []);
+  const { chainId, isConnected } = useAccount();
+  const { switchChainAsync } = useSwitchChain();
+  const queryClient = useQueryClient();
+
+  const {
+    writeContractAsync,
+    data: hash,
+    isPending: isWritePending,
+    error: writeError,
+    reset,
+  } = useWriteContract();
+
+  const {
+    isLoading: isConfirming,
+    isSuccess,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
+    hash,
+  });
+
+  useEffect(() => {
+    if (isSuccess) {
+      queryClient.invalidateQueries();
+    }
+  }, [isSuccess, queryClient]);
+
+  const donate = useCallback(
+    async (amountWei: string) => {
+      setActionError(null);
+      reset();
+
+      if (!isConnected) {
+        setActionError('Please connect your wallet');
+        return;
+      }
+
+      if (!isContractConfigured()) {
+        setActionError('Contract address not configured');
+        return;
+      }
+
+      if (chainId !== CHAIN_ID) {
+        try {
+          await switchChainAsync({ chainId: CHAIN_ID });
+        } catch {
+          setActionError('Please switch to Polygon Amoy');
+          return;
+        }
+      }
+
+      setIsActionPending(true);
+      try {
+        await writeContractAsync({
+          address: CONTRACT_ADDRESS,
+          abi: CrowdfundABI as Abi,
+          functionName: 'donate',
+          args: [BigInt(id)],
+          value: BigInt(amountWei),
+        });
+      } catch (err: unknown) {
+        setActionError(formatError(err));
+      } finally {
+        setIsActionPending(false);
+      }
+    },
+    [id, isConnected, chainId, switchChainAsync, writeContractAsync, reset]
+  );
+
+  const isPending = isActionPending || isWritePending || isConfirming;
+  const txHash = hash ?? null;
+  const error = actionError || formatError(writeError) || formatError(receiptError);
 
   return { donate, isPending, isSuccess, txHash, error };
 }

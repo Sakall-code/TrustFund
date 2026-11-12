@@ -1,23 +1,27 @@
-// STUB - replaced by M1 in Week 2. Do not change the exported signature.
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
+import { useAccount, useDisconnect } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import type { Address } from '../types';
 
 export function useWallet() {
-  const [address, setAddress] = useState<Address | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
+  const { address, isConnected } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { disconnect } = useDisconnect();
 
   const connect = useCallback(async () => {
-    await new Promise((r) => setTimeout(r, 500));
-    setAddress('0x1234567890abcdef1234567890abcdef12345678' as Address);
-    setIsConnected(true);
-  }, []);
+    openConnectModal?.();
+  }, [openConnectModal]);
 
-  const disconnect = useCallback(() => {
-    setAddress(null);
-    setIsConnected(false);
-  }, []);
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+  }, [disconnect]);
 
-  return { address, isConnected, connect, disconnect };
+  return {
+    address: (address as Address) ?? null,
+    isConnected,
+    connect,
+    disconnect: handleDisconnect,
+  };
 }
