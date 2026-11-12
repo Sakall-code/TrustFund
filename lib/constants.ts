@@ -2,6 +2,7 @@ export const CHAIN_ID = 80002;
 export const CHAIN_NAME = 'Polygon Amoy';
 export const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS ??
   '0x0000000000000000000000000000000000000000') as `0x${string}`;
+export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK || '0');
 export const IPFS_GATEWAY =
   process.env.NEXT_PUBLIC_IPFS_GATEWAY ?? 'https://gateway.pinata.cloud/ipfs/';
 export const EXPLORER_URL = 'https://amoy.polygonscan.com';

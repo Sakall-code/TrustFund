@@ -8,7 +8,14 @@ async function main() {
   await contract.waitForDeployment();
   const address = await contract.getAddress();
 
+  const deployTx = contract.deploymentTransaction();
+  const txHash = deployTx ? deployTx.hash : "N/A";
+  const receipt = deployTx ? await deployTx.wait() : null;
+  const blockNumber = receipt ? receipt.blockNumber : "N/A";
+
   console.log(`Crowdfund deployed to: ${address}`);
+  console.log(`Deployment transaction hash: ${txHash}`);
+  console.log(`Deployment block number: ${blockNumber}`);
 
   // Write ABI to lib/abi/Crowdfund.json
   const artifactPath = path.join(__dirname, "../artifacts/contracts/Crowdfund.sol/Crowdfund.json");
