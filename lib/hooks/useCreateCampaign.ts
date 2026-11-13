@@ -3,12 +3,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   useAccount,
+  usePublicClient,
   useSwitchChain,
   useWriteContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Abi } from 'viem';
+import { parseEventLogs, type Abi } from 'viem';
 import { CONTRACT_ADDRESS, CHAIN_ID } from '../constants';
 import CrowdfundABI from '../abi/Crowdfund.json';
 import { isContractConfigured, formatError } from './_errors';
@@ -20,6 +21,7 @@ export function useCreateCampaign() {
   const { chainId, isConnected } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const queryClient = useQueryClient();
+  const client = usePublicClient();
 
   const {
     writeContractAsync,
@@ -50,12 +52,12 @@ export function useCreateCampaign() {
 
       if (!isConnected) {
         setActionError('Please connect your wallet');
-        return;
+        return null;
       }
 
       if (!isContractConfigured()) {
         setActionError('Contract address not configured');
-        return;
+        return null;
       }
 
       if (chainId !== CHAIN_ID) {
@@ -63,25 +65,49 @@ export function useCreateCampaign() {
           await switchChainAsync({ chainId: CHAIN_ID });
         } catch {
           setActionError('Please switch to Polygon Amoy');
-          return;
+          return null;
         }
       }
 
       setIsActionPending(true);
       try {
-        await writeContractAsync({
+        const txHash = await writeContractAsync({
           address: CONTRACT_ADDRESS,
           abi: CrowdfundABI as Abi,
           functionName: 'createCampaign',
           args: [BigInt(goalWei), BigInt(deadline), cid],
         });
+
+        let campaignId: number | null = null;
+        if (client && txHash) {
+          const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+          const logs = parseEventLogs({
+            abi: CrowdfundABI as Abi,
+            eventName: 'CampaignCreated',
+            logs: receipt.logs,
+          });
+
+          if (logs.length > 0 && logs[0].args && 'id' in logs[0].args) {
+            campaignId = Number((logs[0].args as { id: bigint }).id);
+          } else {
+            const count = await client.readContract({
+              address: CONTRACT_ADDRESS,
+              abi: CrowdfundABI as Abi,
+              functionName: 'campaignCount',
+            });
+            campaignId = Number(count);
+          }
+        }
+
+        return { hash: txHash, campaignId };
       } catch (err: unknown) {
         setActionError(formatError(err));
+        return null;
       } finally {
         setIsActionPending(false);
       }
     },
-    [isConnected, chainId, switchChainAsync, writeContractAsync, reset]
+    [isConnected, chainId, switchChainAsync, writeContractAsync, reset, client]
   );
 
   const isPending = isActionPending || isWritePending || isConfirming;

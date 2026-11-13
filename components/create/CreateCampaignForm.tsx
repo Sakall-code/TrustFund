@@ -133,7 +133,7 @@ const INITIAL_VALUES: FormValues = {
 
 export default function CreateCampaignForm() {
   const { address } = useWallet();
-  const { create, txHash } = useCreateCampaign();
+  const { create } = useCreateCampaign();
 
   const [values, setValues] = useState<FormValues>(INITIAL_VALUES);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -211,6 +211,12 @@ export default function CreateCampaignForm() {
     // Block double-submits
     if (submittingRef.current) return;
 
+    // Guard: wallet must be connected with a valid address
+    if (!address) {
+      setSubmitError('Please connect your wallet before submitting.');
+      return;
+    }
+
     // Mark every field as touched and validate
     setTouched({ title: true, description: true, tags: true, image: true, goal: true, deadline: true });
     const freshErrors = validate(values);
@@ -225,7 +231,8 @@ export default function CreateCampaignForm() {
     setStep(1);
     let cid: string;
     try {
-      cid = await uploadImage(values.image);
+      const uploadRes = await uploadImage(values.image);
+      cid = uploadRes.cid;
       if (!cid) throw new Error('No CID returned from upload.');
     } catch {
       setSubmitError('Image upload failed. Please try again.');
@@ -239,10 +246,9 @@ export default function CreateCampaignForm() {
     const goalWei = maticToWei(values.goal);
     const deadlineSeconds = Math.floor(parseISO(values.deadline).getTime() / 1000);
 
+    let createResult: { hash: `0x${string}`; campaignId: number | null } | null = null;
     try {
-      // Hook signature: create(goalWei: string, durationDays: number)
-      // We pass deadlineSeconds as the second numeric argument.
-      await create(goalWei, deadlineSeconds);
+      createResult = await create(goalWei, deadlineSeconds, cid);
     } catch {
       setSubmitError('You cancelled the transaction.');
       setStep(2); // keep step=2 so the modal shows it as failed
@@ -250,28 +256,31 @@ export default function CreateCampaignForm() {
       return;
     }
 
-    // Capture txHash immediately after confirmation
-    const confirmedTxHash = txHash ?? undefined;
+    if (!createResult || !createResult.campaignId) {
+      setSubmitError('Transaction failed or was cancelled.');
+      setStep(2); // keep step=2 so the modal shows it as failed
+      submittingRef.current = false;
+      return;
+    }
+
+    const { hash: confirmedTxHash, campaignId } = createResult;
 
     // ── STEP 3: Saving campaign details ───────────────────────────────────
     setStep(3);
-    let campaignId = 0;
     let metadataWarning: string | null = null;
 
     try {
-      const meta = await createCampaignMeta({
+      await createCampaignMeta({
+        campaignId,
         title: values.title.trim(),
         description: values.description.trim(),
         tags: values.tags,
         imageCid: cid,
-        creatorAddress: address ?? ('0x0000000000000000000000000000000000000000' as `0x${string}`),
+        creatorAddress: address,
       });
-      campaignId = meta.campaignId;
     } catch {
       // Campaign is already live on-chain — show warning but proceed to success
-      // Use a fallback ID so the warning message is still informative
-      const fallbackId = campaignId || 0;
-      metadataWarning = `Your campaign is live on-chain, but we could not save the description. Note down campaign ID ${fallbackId} and tell your team.`;
+      metadataWarning = `Your campaign is live on-chain, but we could not save the description. Note down campaign ID ${campaignId} and tell your team.`;
     }
 
     // Done — clear the in-flight flag and show the success screen
