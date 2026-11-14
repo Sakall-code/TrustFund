@@ -1,15 +1,13 @@
 'use client';
 
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { http } from 'wagmi';
-import { polygonAmoy } from 'wagmi/chains';
+import { createConfig, http } from 'wagmi';
+import { hardhat } from 'wagmi/chains';
+import { RPC_URL } from './constants';
 
-export const config = getDefaultConfig({
-  appName: 'Decentralized Crowdfund',
-  projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || '',
-  chains: [polygonAmoy],
+export const config = createConfig({
+  chains: [hardhat],
   transports: {
-    [polygonAmoy.id]: http(process.env.NEXT_PUBLIC_RPC_URL),
+    [hardhat.id]: http(RPC_URL),
   },
   ssr: true,
 });

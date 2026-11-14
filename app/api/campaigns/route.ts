@@ -40,10 +40,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ items, total });
   } catch (error) {
     console.error('GET /api/campaigns error:', error);
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ items: [], total: 0 });
   }
 }
 

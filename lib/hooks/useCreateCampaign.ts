@@ -1,118 +1,100 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import {
-  useAccount,
-  usePublicClient,
-  useSwitchChain,
-  useWriteContract,
-  useWaitForTransactionReceipt,
-} from 'wagmi';
+import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { parseEventLogs, type Abi } from 'viem';
-import { CONTRACT_ADDRESS, CHAIN_ID } from '../constants';
+import { CONTRACT_ADDRESS } from '../constants';
 import CrowdfundABI from '../abi/Crowdfund.json';
+import {
+  usePersonaStore,
+  getActiveWalletClient,
+  publicClient,
+} from './_personas';
 import { isContractConfigured, formatError } from './_errors';
 
 export function useCreateCampaign() {
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [isActionPending, setIsActionPending] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const { chainId, isConnected } = useAccount();
-  const { switchChainAsync } = useSwitchChain();
+  const { isConnected } = usePersonaStore();
   const queryClient = useQueryClient();
-  const client = usePublicClient();
-
-  const {
-    writeContractAsync,
-    data: hash,
-    isPending: isWritePending,
-    error: writeError,
-    reset,
-  } = useWriteContract();
-
-  const {
-    isLoading: isConfirming,
-    isSuccess,
-    error: receiptError,
-  } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  useEffect(() => {
-    if (isSuccess) {
-      queryClient.invalidateQueries();
-    }
-  }, [isSuccess, queryClient]);
 
   const create = useCallback(
     async (goalWei: string, deadline: number | string, cid: string) => {
-      setActionError(null);
-      reset();
+      setError(null);
+      setIsSuccess(false);
+      setTxHash(null);
 
       if (!isConnected) {
-        setActionError('Please connect your wallet');
+        setError('Please connect your wallet');
         return null;
       }
 
       if (!isContractConfigured()) {
-        setActionError('Contract address not configured');
+        setError('Contract address not configured');
         return null;
       }
 
-      if (chainId !== CHAIN_ID) {
-        try {
-          await switchChainAsync({ chainId: CHAIN_ID });
-        } catch {
-          setActionError('Please switch to Polygon Amoy');
-          return null;
-        }
-      }
-
-      setIsActionPending(true);
+      setIsPending(true);
       try {
-        const txHash = await writeContractAsync({
+        const walletClient = getActiveWalletClient();
+
+        // Check current on-chain timestamp
+        const block = await publicClient.getBlock();
+        const chainNow = block.timestamp;
+        let finalDeadline = BigInt(deadline);
+
+        // If chain time has been advanced (via time-travel) ahead of the date picked by the UI,
+        // calculate the intended duration from wall-clock now and anchor it to chainNow
+        // so the smart contract's deadline check (deadline > block.timestamp + 1 hours) never fails:
+        if (finalDeadline <= chainNow + 3600n) {
+          const wallNow = BigInt(Math.floor(Date.now() / 1000));
+          const duration = finalDeadline > wallNow ? finalDeadline - wallNow : 7n * 86400n;
+          finalDeadline = chainNow + (duration > 3600n ? duration : 7200n);
+        }
+
+        const hash = await walletClient.writeContract({
           address: CONTRACT_ADDRESS,
           abi: CrowdfundABI as Abi,
           functionName: 'createCampaign',
-          args: [BigInt(goalWei), BigInt(deadline), cid],
+          args: [BigInt(goalWei), finalDeadline, cid],
+        });
+
+        setTxHash(hash);
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        const logs = parseEventLogs({
+          abi: CrowdfundABI as Abi,
+          eventName: 'CampaignCreated',
+          logs: receipt.logs,
         });
 
         let campaignId: number | null = null;
-        if (client && txHash) {
-          const receipt = await client.waitForTransactionReceipt({ hash: txHash });
-          const logs = parseEventLogs({
+        if (logs.length > 0 && logs[0].args && 'id' in logs[0].args) {
+          campaignId = Number((logs[0].args as { id: bigint }).id);
+        } else {
+          const count = await publicClient.readContract({
+            address: CONTRACT_ADDRESS,
             abi: CrowdfundABI as Abi,
-            eventName: 'CampaignCreated',
-            logs: receipt.logs,
+            functionName: 'campaignCount',
           });
-
-          if (logs.length > 0 && logs[0].args && 'id' in logs[0].args) {
-            campaignId = Number((logs[0].args as { id: bigint }).id);
-          } else {
-            const count = await client.readContract({
-              address: CONTRACT_ADDRESS,
-              abi: CrowdfundABI as Abi,
-              functionName: 'campaignCount',
-            });
-            campaignId = Number(count);
-          }
+          campaignId = Number(count);
         }
 
-        return { hash: txHash, campaignId };
+        setIsSuccess(true);
+        queryClient.invalidateQueries();
+        return { hash, campaignId };
       } catch (err: unknown) {
-        setActionError(formatError(err));
+        setError(formatError(err));
         return null;
       } finally {
-        setIsActionPending(false);
+        setIsPending(false);
       }
     },
-    [isConnected, chainId, switchChainAsync, writeContractAsync, reset, client]
+    [isConnected, queryClient]
   );
-
-  const isPending = isActionPending || isWritePending || isConfirming;
-  const txHash = hash ?? null;
-  const error = actionError || formatError(writeError) || formatError(receiptError);
 
   return { create, isPending, isSuccess, txHash, error };
 }

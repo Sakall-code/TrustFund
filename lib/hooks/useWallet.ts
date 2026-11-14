@@ -1,27 +1,21 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useAccount, useDisconnect } from 'wagmi';
-import { useConnectModal } from '@rainbow-me/rainbowkit';
 import type { Address } from '../types';
+import {
+  usePersonaStore,
+  connectPersona,
+  disconnectPersona,
+  PERSONAS,
+} from './_personas';
 
 export function useWallet() {
-  const { address, isConnected } = useAccount();
-  const { openConnectModal } = useConnectModal();
-  const { disconnect } = useDisconnect();
-
-  const connect = useCallback(async () => {
-    openConnectModal?.();
-  }, [openConnectModal]);
-
-  const handleDisconnect = useCallback(() => {
-    disconnect();
-  }, [disconnect]);
+  const { activeIndex, isConnected } = usePersonaStore();
+  const persona = PERSONAS[activeIndex];
 
   return {
-    address: (address as Address) ?? null,
+    address: isConnected ? (persona.address as Address) : null,
     isConnected,
-    connect,
-    disconnect: handleDisconnect,
+    connect: connectPersona,
+    disconnect: disconnectPersona,
   };
 }

@@ -33,13 +33,11 @@ export default function HomePage() {
       const tagParam = activeTag || undefined;
 
       // Pass { q, tag } to listCampaigns
-      const data = await (listCampaigns as unknown as (params?: {
-        q?: string;
-        tag?: string;
-      }) => Promise<CampaignMeta[]>)({
+      const res = await listCampaigns({
         q: qParam,
         tag: tagParam,
       });
+      const data: CampaignMeta[] = Array.isArray(res) ? res : res?.items ?? [];
 
       // Save initial campaigns for global stats if not yet recorded
       if (initialCampaigns.length === 0 && data.length > 0 && !qParam && !tagParam) {

@@ -36,9 +36,10 @@ export function formatError(err: unknown): string | null {
       shortMessage?: string;
       message?: string;
       data?: { errorName?: string };
+      cause?: { code?: string; message?: string };
     };
 
-    const fullText = `${errorObj.shortMessage || ''} ${errorObj.message || ''} ${errorObj.data?.errorName || ''}`;
+    const fullText = `${errorObj.shortMessage || ''} ${errorObj.message || ''} ${errorObj.data?.errorName || ''} ${errorObj.cause?.message || ''}`;
 
     // 1. Check user rejection
     if (/user rejected|user denied/i.test(fullText)) {
@@ -50,19 +51,28 @@ export function formatError(err: unknown): string | null {
       return 'Insufficient funds for gas or transaction value';
     }
 
-    // 3. Check gas limit too high (MetaMask fallback when transaction reverts in simulation)
+    // 3. Check Hardhat node connection errors
+    if (
+      /fetch failed|ECONNREFUSED|Failed to fetch|NetworkError|connect ECONNREFUSED/i.test(
+        fullText
+      )
+    ) {
+      return 'Cannot connect to local Hardhat node at 127.0.0.1:8545 — run: npx hardhat node';
+    }
+
+    // 4. Check gas limit too high (MetaMask fallback when transaction reverts in simulation)
     if (/gas limit too high/i.test(fullText)) {
       return 'Transaction would fail on-chain (conditions not met, e.g. not owner or deadline not ended)';
     }
 
-    // 4. Check contract custom errors
+    // 5. Check contract custom errors
     for (const [errorName, message] of Object.entries(CUSTOM_ERROR_MESSAGES)) {
       if (fullText.includes(errorName)) {
         return message;
       }
     }
 
-    // 4. Check for shortMessage provided by viem
+    // 6. Check for shortMessage provided by viem
     if (errorObj.shortMessage && typeof errorObj.shortMessage === 'string') {
       const cleaned = errorObj.shortMessage
         .replace(/^Execution reverted:?\s*/i, '')
@@ -70,7 +80,7 @@ export function formatError(err: unknown): string | null {
       return cleaned || errorObj.shortMessage;
     }
 
-    // 5. Fallback first line
+    // 7. Fallback first line
     if (errorObj.message && typeof errorObj.message === 'string') {
       const firstLine = errorObj.message.split('\n')[0].trim();
       return firstLine.length > 120 ? firstLine.slice(0, 120) + '...' : firstLine;
