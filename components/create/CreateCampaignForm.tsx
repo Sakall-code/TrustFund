@@ -36,6 +36,7 @@ interface FormValues {
   image: File | null;
   goal: string;
   deadline: string;
+  softCaps: string;
 }
 
 type FormErrors = Partial<Record<keyof FormValues, string>>;
@@ -117,6 +118,29 @@ function validate(values: FormValues): FormErrors {
     errors.image = 'Campaign image is required.';
   }
 
+  // Soft-Caps: optional, but if entered, must be ascending numbers < goal
+  if (values.softCaps.trim()) {
+    const parts = values.softCaps.split(/[\s,]+/).filter(Boolean);
+    const goalNum = parseFloat(values.goal);
+    let prev = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const num = parseFloat(parts[i]);
+      if (isNaN(num) || num <= 0) {
+        errors.softCaps = 'Each milestone must be a positive number.';
+        break;
+      }
+      if (num <= prev) {
+        errors.softCaps = 'Milestones must be in strictly ascending order.';
+        break;
+      }
+      if (!isNaN(goalNum) && goalNum > 0 && num >= goalNum) {
+        errors.softCaps = `Intermediate milestones must be strictly less than the goal (${goalNum} MATIC).`;
+        break;
+      }
+      prev = num;
+    }
+  }
+
   return errors;
 }
 
@@ -129,6 +153,7 @@ const INITIAL_VALUES: FormValues = {
   image: null,
   goal: '',
   deadline: '',
+  softCaps: '',
 };
 
 export default function CreateCampaignForm() {
@@ -218,7 +243,7 @@ export default function CreateCampaignForm() {
     }
 
     // Mark every field as touched and validate
-    setTouched({ title: true, description: true, tags: true, image: true, goal: true, deadline: true });
+    setTouched({ title: true, description: true, tags: true, image: true, goal: true, deadline: true, softCaps: true });
     const freshErrors = validate(values);
     setErrors(freshErrors);
 
@@ -246,9 +271,18 @@ export default function CreateCampaignForm() {
     const goalWei = maticToWei(values.goal);
     const deadlineSeconds = Math.floor(parseISO(values.deadline).getTime() / 1000);
 
+    let softCapsWei: string[] = [];
+    if (values.softCaps.trim()) {
+      const parts = values.softCaps.split(/[\s,]+/).filter(Boolean);
+      softCapsWei = parts.map((p) => maticToWei(p));
+    }
+    if (!softCapsWei.includes(goalWei)) {
+      softCapsWei.push(goalWei);
+    }
+
     let createResult: { hash: `0x${string}`; campaignId: number | null } | null = null;
     try {
-      createResult = await create(goalWei, deadlineSeconds, cid);
+      createResult = await create(goalWei, deadlineSeconds, cid, softCapsWei);
     } catch {
       setSubmitError('You cancelled the transaction.');
       setStep(2); // keep step=2 so the modal shows it as failed
@@ -436,6 +470,24 @@ export default function CreateCampaignForm() {
             />
             <p id="goal-hint" className="mt-1 text-xs text-neutral-500">
               Must be greater than 0 · up to 6 decimal places
+            </p>
+          </div>
+
+          {/* ── Soft-Cap Milestones ── */}
+          <div>
+            <Input
+              id="softCaps"
+              type="text"
+              label="Soft-Cap Milestones (Optional Step-by-Step Withdrawals)"
+              placeholder="e.g. 20, 50"
+              value={values.softCaps}
+              onChange={(e) => setField('softCaps', e.target.value)}
+              onBlur={() => handleBlur('softCaps')}
+              error={fieldError('softCaps')}
+              aria-describedby="softCaps-hint"
+            />
+            <p id="softCaps-hint" className="mt-1 text-xs text-neutral-500">
+              Enter intermediate MATIC milestones separated by commas (e.g. 20, 50). Must be strictly ascending and less than your goal. Final goal ({values.goal || '0'} MATIC) is auto-appended as the last milestone.
             </p>
           </div>
 

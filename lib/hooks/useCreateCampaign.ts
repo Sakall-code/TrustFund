@@ -22,7 +22,12 @@ export function useCreateCampaign() {
   const queryClient = useQueryClient();
 
   const create = useCallback(
-    async (goalWei: string, deadline: number | string, cid: string) => {
+    async (
+      goalWei: string,
+      deadline: number | string,
+      cid: string,
+      softCapsWei?: string[]
+    ) => {
       setError(null);
       setIsSuccess(false);
       setTxHash(null);
@@ -55,11 +60,17 @@ export function useCreateCampaign() {
           finalDeadline = chainNow + (duration > 3600n ? duration : 7200n);
         }
 
+        const goalBigInt = BigInt(goalWei);
+        const finalSoftCaps =
+          softCapsWei && softCapsWei.length > 0
+            ? softCapsWei.map((c) => BigInt(c))
+            : [goalBigInt];
+
         const hash = await walletClient.writeContract({
           address: CONTRACT_ADDRESS,
           abi: CrowdfundABI as Abi,
           functionName: 'createCampaign',
-          args: [BigInt(goalWei), finalDeadline, cid],
+          args: [goalBigInt, finalDeadline, cid, finalSoftCaps],
         });
 
         setTxHash(hash);

@@ -32,13 +32,16 @@ export function useCampaignChain(id: number) {
   const error: string | null = formatError(queryError);
 
   if (rawData && !queryError) {
-    const [owner, goal, deadline, raised, claimed] = rawData as [
+    const [owner, goal, deadline, raised, claimed, , withdrawn, unlocked, softCaps] = rawData as [
       string,
       bigint,
       bigint,
       bigint,
       boolean,
       string,
+      bigint,
+      bigint,
+      bigint[],
     ];
     if (owner && owner.toLowerCase() !== ZERO_ADDRESS) {
       const offset = getTimeOffset();
@@ -49,6 +52,9 @@ export function useCampaignChain(id: number) {
         deadline: Math.max(0, Number(deadline) - offset),
         raisedWei: raised.toString(),
         claimed,
+        withdrawnWei: withdrawn ? withdrawn.toString() : '0',
+        unlockedWei: unlocked ? unlocked.toString() : '0',
+        softCapsWei: softCaps ? softCaps.map((c) => c.toString()) : [goal.toString()],
       };
     }
   }
