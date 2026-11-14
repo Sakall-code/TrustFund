@@ -26,6 +26,12 @@ export default function CampaignStats({ chain }: { chain: CampaignChain | null }
   const isEnded = chain.deadline < now;
   const isFunded = raised >= goal;
 
+  const unlockedMatic = weiToMatic(chain.unlockedWei || '0');
+  const withdrawnMatic = weiToMatic(chain.withdrawnWei || '0');
+  const softCaps = chain.softCapsWei && chain.softCapsWei.length > 0
+    ? chain.softCapsWei
+    : [chain.goalWei];
+
   let statusText = 'Active';
   let statusVariant: 'default' | 'success' | 'warning' | 'danger' = 'success';
 
@@ -36,8 +42,13 @@ export default function CampaignStats({ chain }: { chain: CampaignChain | null }
     statusText = 'Funded';
     statusVariant = 'success';
   } else if (isEnded) {
-    statusText = 'Ended - not funded';
-    statusVariant = 'danger';
+    if (BigInt(chain.unlockedWei || '0') > 0n) {
+      statusText = 'Partially Unlocked';
+      statusVariant = 'warning';
+    } else {
+      statusText = 'Ended - not funded';
+      statusVariant = 'danger';
+    }
   }
 
   return (
@@ -48,6 +59,53 @@ export default function CampaignStats({ chain }: { chain: CampaignChain | null }
       </div>
 
       <ProgressBar value={percent} className="mb-2" />
+
+      {/* Soft-Cap Checkpoints Tracker */}
+      <div className="bg-gray-950/60 rounded-lg p-4 border border-gray-800/80 space-y-3">
+        <div className="flex justify-between items-center text-xs font-medium text-gray-400">
+          <span className="uppercase tracking-wider">Soft-Cap Checkpoints</span>
+          <span className="text-gray-300">
+            {softCaps.filter((cap) => BigInt(chain.raisedWei) >= BigInt(cap)).length} / {softCaps.length} reached
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {softCaps.map((capWei, idx) => {
+            const capMatic = weiToMatic(capWei);
+            const isReached = BigInt(chain.raisedWei) >= BigInt(capWei);
+            const isLast = idx === softCaps.length - 1;
+
+            return (
+              <span
+                key={idx}
+                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
+                  isReached
+                    ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
+                    : 'bg-gray-900 border-gray-700/60 text-gray-400'
+                }`}
+              >
+                {isReached ? (
+                  <span className="mr-1.5 text-emerald-400 font-bold">✓</span>
+                ) : (
+                  <span className="mr-1.5 text-gray-500">🔒</span>
+                )}
+                {capMatic} MATIC {isReached ? 'Unlocked' : isLast ? 'Final Goal' : 'Locked'}
+              </span>
+            );
+          })}
+        </div>
+
+        <div className="pt-2 border-t border-gray-800/60 grid grid-cols-2 gap-2 text-xs">
+          <div className="bg-gray-900/80 rounded px-2.5 py-1.5 border border-gray-800">
+            <span className="text-gray-400 block">Unlocked:</span>
+            <span className="font-semibold text-emerald-400 text-sm">{unlockedMatic} MATIC</span>
+          </div>
+          <div className="bg-gray-900/80 rounded px-2.5 py-1.5 border border-gray-800">
+            <span className="text-gray-400 block">Withdrawn by Creator:</span>
+            <span className="font-semibold text-blue-400 text-sm">{withdrawnMatic} MATIC</span>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-3 gap-4 text-center divide-x divide-gray-800">
         <div>

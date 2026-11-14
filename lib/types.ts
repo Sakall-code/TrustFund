@@ -18,6 +18,9 @@ export interface CampaignChain {
   raisedWei: string;
   deadline: number;
   claimed: boolean;
+  withdrawnWei: string;
+  unlockedWei: string;
+  softCapsWei: string[];
 }
 
 export interface Campaign extends CampaignMeta {

@@ -22,6 +22,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '52000000000000000000',
       deadline: now - 30 * DAY,
       claimed: true,
+      withdrawnWei: '52000000000000000000',
+      unlockedWei: '52000000000000000000',
+      softCapsWei: ['20000000000000000000', '50000000000000000000'],
     },
   },
   // 2 — Fully funded, not yet claimed
@@ -42,6 +45,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '31500000000000000000',
       deadline: now + 5 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '31500000000000000000',
+      softCapsWei: ['10000000000000000000', '20000000000000000000', '30000000000000000000'],
     },
   },
   // 3 — Fully funded, not yet claimed
@@ -62,6 +68,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '82000000000000000000',
       deadline: now + 10 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '82000000000000000000',
+      softCapsWei: ['80000000000000000000'],
     },
   },
   // 4 — In progress, ~60%
@@ -82,6 +91,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '15000000000000000000',
       deadline: now + 20 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '10000000000000000000',
+      softCapsWei: ['10000000000000000000', '25000000000000000000'],
     },
   },
   // 5 — In progress, ~40%
@@ -102,6 +114,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '40000000000000000000',
       deadline: now + 45 * DAY,
       claimed: false,
+      withdrawnWei: '20000000000000000000',
+      unlockedWei: '20000000000000000000',
+      softCapsWei: ['20000000000000000000', '50000000000000000000', '100000000000000000000'],
     },
   },
   // 6 — In progress, ~25%
@@ -122,6 +137,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '15000000000000000000',
       deadline: now + 60 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '0',
+      softCapsWei: ['20000000000000000000', '60000000000000000000'],
     },
   },
   // 7 — In progress, ~75%
@@ -142,6 +160,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '30000000000000000000',
       deadline: now + 15 * DAY,
       claimed: false,
+      withdrawnWei: '10000000000000000000',
+      unlockedWei: '25000000000000000000',
+      softCapsWei: ['10000000000000000000', '25000000000000000000', '40000000000000000000'],
     },
   },
   // 8 — Expired and failed (~30%)
@@ -162,6 +183,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '22500000000000000000',
       deadline: now - 15 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '20000000000000000000',
+      softCapsWei: ['20000000000000000000', '50000000000000000000', '75000000000000000000'],
     },
   },
   // 9 — Expired and failed (~15%)
@@ -182,6 +206,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '3000000000000000000',
       deadline: now - 20 * DAY,
       claimed: false,
+      withdrawnWei: '0',
+      unlockedWei: '0',
+      softCapsWei: ['20000000000000000000'],
     },
   },
   // 10 — Expired and claimed (fully funded before expiry)
@@ -202,6 +229,9 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
       raisedWei: '95000000000000000000',
       deadline: now - 5 * DAY,
       claimed: true,
+      withdrawnWei: '95000000000000000000',
+      unlockedWei: '95000000000000000000',
+      softCapsWei: ['30000000000000000000', '60000000000000000000', '90000000000000000000'],
     },
   },
 ];

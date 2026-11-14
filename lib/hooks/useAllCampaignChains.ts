@@ -40,13 +40,16 @@ export function useAllCampaignChains() {
       const offset = getTimeOffset();
       const campaigns: CampaignChain[] = [];
       results.forEach((result, index) => {
-        const [owner, goal, deadline, raised, claimed] = result as [
+        const [owner, goal, deadline, raised, claimed, , withdrawn, unlocked, softCaps] = result as [
           string,
           bigint,
           bigint,
           bigint,
           boolean,
           string,
+          bigint,
+          bigint,
+          bigint[],
         ];
         if (owner && owner.toLowerCase() !== ZERO_ADDRESS) {
           campaigns.push({
@@ -56,6 +59,9 @@ export function useAllCampaignChains() {
             deadline: Math.max(0, Number(deadline) - offset),
             raisedWei: raised.toString(),
             claimed,
+            withdrawnWei: withdrawn ? withdrawn.toString() : '0',
+            unlockedWei: unlocked ? unlocked.toString() : '0',
+            softCapsWei: softCaps ? softCaps.map((c) => c.toString()) : [goal.toString()],
           });
         }
       });
