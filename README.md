@@ -120,7 +120,7 @@ Campaigns enforce minimum 1-hour durations on-chain. To demo end-to-end expirati
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/Sakall-code/crowdfund.git
+git clone [https://github.com/Sakall-code/TrustFund.git
 cd crowdfund
 npm install
 ```
